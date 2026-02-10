@@ -59,6 +59,14 @@ PYTHON3_HOME = /usr
 endif
 
 
+##
+# Go stuff
+#
+ifndef GO_HOME
+GO_HOME = /usr/local/go
+endif
+
+
 ifndef CXX
 CXX	= g++
 endif
