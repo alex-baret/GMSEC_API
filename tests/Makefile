@@ -12,9 +12,11 @@ all:
 	- $(MAKE) -C c/src
 	- $(MAKE) -C csharp/src
 	- $(MAKE) -C java
+	- $(MAKE) -C go
 
 clean:
 	- $(MAKE) -C cpp/src $@
 	- $(MAKE) -C c/src $@
 	- $(MAKE) -C csharp/src $@
 	- $(MAKE) -C java $@
+	- $(MAKE) -C go $@
