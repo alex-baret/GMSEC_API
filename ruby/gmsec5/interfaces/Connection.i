@@ -82,6 +82,35 @@ using namespace gmsec::api5;
 %freefunc Connection "free_Connection";
 
 
+/* The C++ Connection::unsubscribe() deletes the SubscriptionInfo object and
+ * nulls the caller's pointer; the Ruby proxy would otherwise retain a dangling
+ * pointer, and a second call to unsubscribe() would crash the interpreter.
+ *
+ * The argout typemap below nulls the pointer held by the Ruby proxy after a
+ * successful unsubscribe (on error, the global %exception handler raises
+ * before the argout code is reached). The in typemap tolerates such an
+ * invalidated proxy (and nil) so that the core API is handed a NULL pointer
+ * and can throw a catchable GmsecException, akin to the Java binding.
+ *
+ * Note: these typemaps must be declared before the class definition is
+ * parsed (i.e. before Connection.h is %include'd) in order to apply to the
+ * %extend-ed unsubscribe() method below.
+ */
+%typemap(in) gmsec::api5::SubscriptionInfo* info (void* argp = 0, int res = 0) {
+    res = SWIG_ConvertPtr($input, &argp, $descriptor(gmsec::api5::SubscriptionInfo*), 0);
+    if (!SWIG_IsOK(res) && res != SWIG_ObjectPreviouslyDeletedError) {
+        SWIG_exception_fail(SWIG_ArgError(res), Ruby_Format_TypeError("", "gmsec::api5::SubscriptionInfo *", "unsubscribe", $argnum, $input));
+    }
+    $1 = reinterpret_cast< gmsec::api5::SubscriptionInfo* >(argp);
+}
+
+%typemap(argout) gmsec::api5::SubscriptionInfo* info {
+    if (TYPE($input) == T_DATA) {
+        DATA_PTR($input) = NULL;
+    }
+}
+
+
 %include <gmsec5/util/wdllexp.h>
 %include <gmsec5/Connection.h>
 
@@ -128,6 +157,8 @@ using namespace gmsec::api5;
         }
     }
 };
+
+%clear gmsec::api5::SubscriptionInfo* info;
 
 
 %header %{

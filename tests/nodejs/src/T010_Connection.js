@@ -321,6 +321,23 @@ class T010_Connection extends TestCase
 		}
 
 		// Off-nominal test
+		try {
+			// Attempt to unsubscribe twice using the same SubscriptionInfo object
+			conn = gmsec.Connection.create(this.getConfig());
+			conn.connect();
+			var info = conn.setupSubscription(this.getSubject("FOO.BAR"));
+			conn.unsubscribe(info);
+			conn.unsubscribe(info);
+			this.check("Expected an exception", false);
+		}
+		catch (e) {
+			this.check(e.message, e.message.includes("Cannot unsubscribe using NULL SubscriptionInfo object"));
+		}
+		finally {
+			gmsec.Connection.destroy(conn);
+		}
+
+		// Off-nominal test
 		var conn1 = null;
 		var conn2 = null;
 

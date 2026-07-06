@@ -38,6 +38,32 @@ using namespace gmsec::api5;
 %rename ("$ignore", fullname=1) gmsec::api5::Connection::publish(const Message&, const Config&);
 %ignore gmsec::api5::Connection::receive(GMSEC_I32 timeout = -1);
 
+/* The C++ Connection::unsubscribe() deletes the SubscriptionInfo object and
+ * nulls the caller's pointer; the JS proxy would otherwise retain a dangling
+ * pointer, and a second call to unsubscribe() would crash the interpreter.
+ * After a successful unsubscribe (on error the %exception handler jumps to
+ * the fail label before this code runs), null the pointer stored inside the
+ * SWIGV8_Proxy so that a subsequent call passes NULL to the core API, which
+ * then throws a catchable GmsecException, akin to the Java binding.
+ *
+ * Note: this typemap must be declared before the class definition is
+ * parsed (i.e. before Connection.h is %include'd) in order to apply to the
+ * %extend-ed unsubscribe() method below.
+ */
+%typemap(argout) gmsec::api5::SubscriptionInfo* info {
+    if ($input->IsObject()) {
+        v8::Local<v8::Object> swig_obj = v8::Local<v8::Object>::Cast($input);
+        if (swig_obj->InternalFieldCount() > 0) {
+            SWIGV8_Proxy* swig_proxy = static_cast<SWIGV8_Proxy*>(swig_obj->GetAlignedPointerFromInternalField(0));
+            if (swig_proxy != NULL) {
+                swig_proxy->swigCObject = NULL;
+                swig_proxy->swigCMemOwn = false;
+            }
+        }
+    }
+}
+
+
 %include <gmsec5/util/wdllexp.h>
 %include <gmsec5/Connection.h>
 %include <gmsec5/SubscriptionInfo.h>
@@ -98,4 +124,6 @@ using namespace gmsec::api5;
         return self->receive(static_cast<GMSEC_I32>(timeout));
     }
 };
+
+%clear gmsec::api5::SubscriptionInfo* info;
 

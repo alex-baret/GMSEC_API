@@ -17,6 +17,37 @@ using namespace gmsec::api5;
 %ignore gmsec::api5::Connection::Connection(const Config&, MessageFactory&);
 %ignore gmsec::api5::Connection::unsubscribe(SubscriptionInfo*&);
 
+/* The C++ Connection::unsubscribe() deletes the SubscriptionInfo object and
+ * nulls the caller's pointer; the Perl proxy would otherwise retain a dangling
+ * pointer, and a second call to unsubscribe() would crash the interpreter.
+ * After a successful unsubscribe (on error the %exception handler jumps to
+ * the fail label before this code runs), null the pointer stored inside the
+ * Perl proxy so that a subsequent call passes NULL to the core API, which
+ * then throws a catchable GmsecException, akin to the Java binding.
+ * SWIG shadow objects are blessed hash refs with tied ('P') magic whose
+ * mg_obj is an inner blessed scalar holding the C pointer as an IV.
+ *
+ * Note: this typemap must be declared before the class definition is
+ * parsed (i.e. before Connection.h is %include'd) in order to apply to the
+ * %extend-ed unsubscribe() method below.
+ */
+%typemap(argout) gmsec::api5::SubscriptionInfo* info {
+    if (sv_isobject($input)) {
+        SV* swig_rsv = SvRV($input);
+        if (SvTYPE(swig_rsv) == SVt_PVHV) {
+            MAGIC* swig_mg = (SvMAGICAL(swig_rsv) ? mg_find(swig_rsv, PERL_MAGIC_tied) : NULL);
+            if (swig_mg != NULL && sv_isobject(swig_mg->mg_obj)) {
+                sv_setiv(SvRV(swig_mg->mg_obj), 0);
+                SvSETMAGIC(SvRV(swig_mg->mg_obj));
+            }
+        }
+        else {
+            sv_setiv(swig_rsv, 0);
+            SvSETMAGIC(swig_rsv);
+        }
+    }
+}
+
 %include <gmsec5/util/wdllexp.h>
 %include <gmsec5/Connection.h>
 
@@ -39,6 +70,8 @@ using namespace gmsec::api5;
         self->unsubscribe(info);
     }
 };
+
+%clear gmsec::api5::SubscriptionInfo* info;
 
 %perlcode%{
 =pod

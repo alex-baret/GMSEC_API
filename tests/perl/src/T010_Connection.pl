@@ -546,6 +546,28 @@ sub test_unsubscribe
 		$conn = undef;
 	}
 
+	eval
+	{
+		# Attempt to unsubscribe twice using the same SubscriptionInfo object
+		$conn = libgmsec_perl::Connection::create($config);
+		$conn->connect();
+		my $info = $conn->subscribe( $test->getSubject("FOO.BAR") );
+		$conn->unsubscribe($info);
+		$conn->unsubscribe($info);
+		$test->check("Was expecting an exception", 0);
+	};
+	if (isa($@, 'libgmsec_perl::GmsecException'))
+	{
+		my $error = $@;
+		$test->check($error->what(), index($error->what(), "Cannot unsubscribe using NULL SubscriptionInfo object") != -1);
+	}
+	if (defined $conn)
+	{
+		$conn->disconnect();
+		libgmsec_perl::Connection::destroy($conn);
+		$conn = undef;
+	}
+
 	my $conn2;
 
 	eval

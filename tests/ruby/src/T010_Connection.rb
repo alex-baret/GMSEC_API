@@ -436,6 +436,24 @@ class Test_Connection < Test
             end
 		end
 
+        begin
+            # Attempt to unsubscribe twice using the same SubscriptionInfo object
+            conn = Libgmsec_ruby::Connection::create(config)
+            conn.connect()
+            info = conn.subscribe( get_subject("FOO.BAR") )
+            conn.unsubscribe(info)
+            conn.unsubscribe(info)
+            check("Was expecting an exception", false)
+        rescue GmsecException => e
+            check(e.message, e.message.include?("Cannot unsubscribe using NULL SubscriptionInfo object"))
+        ensure
+            if conn != nil
+                conn.disconnect()
+                Libgmsec_ruby::Connection::destroy( conn )
+                conn = nil
+            end
+		end
+
         conn2 = nil
         begin
             # Attempt to unsubscribe using wrong Connection object
